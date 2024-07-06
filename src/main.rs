@@ -91,6 +91,7 @@ use roll_forward::exec::RollForward;
 
 pub const ZFS_HIDDEN_DIRECTORY: &str = ".zfs";
 pub const ZFS_SNAPSHOT_DIRECTORY: &str = ".zfs/snapshot";
+pub const RESTIC_SNAPSHOT_DIRECTORY: &str = "snapshots";
 pub const BTRFS_SNAPPER_HIDDEN_DIRECTORY: &str = ".snapshots";
 pub const TM_DIR_REMOTE: &str = "/Volumes/.timemachine";
 pub const TM_DIR_LOCAL: &str = "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb";

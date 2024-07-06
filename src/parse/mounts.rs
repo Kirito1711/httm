@@ -39,6 +39,7 @@ pub const BTRFS_FSTYPE: &str = "btrfs";
 pub const SMB_FSTYPE: &str = "smbfs";
 pub const NFS_FSTYPE: &str = "nfs";
 pub const AFP_FSTYPE: &str = "afpfs";
+pub const FUSE_FSTYPE: &str = "fusefs";
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FilesystemType {
@@ -46,6 +47,7 @@ pub enum FilesystemType {
     Btrfs(Option<PathBuf>),
     Nilfs2,
     Apfs,
+    Restic,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -229,6 +231,13 @@ impl BaseFilesystemInfo {
                         DatasetMetadata {
                             source: PathBuf::from(mount_info.source),
                             fs_type: FilesystemType::Nilfs2,
+                        },
+                    )),
+                    FUSE_FSTYPE if mount_info.source == PathBuf::from("restic") => Either::Left((
+                        dest_path,
+                        DatasetMetadata {
+                            source: PathBuf::from(mount_info.source),
+                            fs_type: FilesystemType::Restic,
                         },
                     )),
                     _ => Either::Right(dest_path),
