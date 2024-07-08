@@ -331,12 +331,12 @@ impl BaseFilesystemInfo {
     }
 
     fn from_restic_dir(map_of_datasets: &mut HashMap<PathBuf, DatasetMetadata>) {
-        let root_dir = PathBuf::from(ROOT_DIRECTORY);
-
         if let Some((_k, v)) = map_of_datasets
             .iter()
             .find(|(_k, v)| v.fs_type == FilesystemType::Restic)
         {
+            let root_dir = PathBuf::from(ROOT_DIRECTORY);
+
             match map_of_datasets.get(&root_dir) {
                 Some(md) => {
                     eprintln!("WARN: httm has prioritized a discovered root directory mount over any potential Restic mounts: {:?}", md.source);
