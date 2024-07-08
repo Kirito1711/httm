@@ -323,6 +323,8 @@ impl BaseFilesystemInfo {
 
         Self::from_tm_dir(&mut map_of_datasets);
 
+        Self::from_restic_dir(&mut map_of_datasets);
+
         if map_of_datasets.is_empty() {
             Err(HttmError::new("httm could not find any valid datasets on the system.").into())
         } else {
