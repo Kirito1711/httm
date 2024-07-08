@@ -344,16 +344,13 @@ impl BaseFilesystemInfo {
                     eprintln!("WARN: httm has prioritized a discovered root directory mount over any potential Restic mounts: {:?}", md.source);
                 }
                 None => {
-                    let mut new: HashMap<PathBuf, DatasetMetadata> = HashMap::new();
-                    new.insert(
-                        root_dir,
-                        DatasetMetadata {
-                            source: v.source.clone(),
-                            fs_type: FilesystemType::Restic,
-                        },
-                    );
+                    let metadata = DatasetMetadata {
+                        source: v.source.clone(),
+                        fs_type: FilesystemType::Restic,
+                    };
 
-                    mem::swap(map_of_datasets, &mut new)
+                    // SAFETY: Check no entry is here just above
+                    map_of_datasets.insert_unique_unchecked(root_dir, metadata);
                 }
             }
         }
