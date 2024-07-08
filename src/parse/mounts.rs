@@ -27,7 +27,6 @@ use proc_mounts::MountIter;
 use rayon::iter::Either;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
-use std::mem;
 use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
