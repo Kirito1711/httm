@@ -337,8 +337,8 @@ impl BaseFilesystemInfo {
             Some(md) => {
                 eprintln!("WARN: httm has prioritized a discovered root directory mount over any potential Restic mounts: {:?}", md.source);
             }
-            None => match map_of_datasets.iter().find(|(_k, v)| v.source == root_dir) {
-                Some((_k, v)) => {
+            None => {
+                if let Some((_k, v)) = map_of_datasets.iter().find(|(_k, v)| v.source == root_dir) {
                     let mut new: HashMap<PathBuf, DatasetMetadata> = HashMap::new();
                     new.insert(
                         root_dir,
@@ -350,8 +350,7 @@ impl BaseFilesystemInfo {
 
                     mem::swap(map_of_datasets, &mut new)
                 }
-                None => {}
-            },
+            }
         }
     }
 
