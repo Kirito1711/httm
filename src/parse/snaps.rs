@@ -63,7 +63,7 @@ impl MapOfSnaps {
             .par_iter()
             .map(|(mount, dataset_info)| {
                 let snap_mounts: Vec<PathBuf> = match &dataset_info.fs_type {
-                    FilesystemType::Zfs | FilesystemType::Nilfs2 | FilesystemType::Apfs | FilesystemType::Restic => {
+                    FilesystemType::Zfs | FilesystemType::Nilfs2 | FilesystemType::Apfs => {
                         Self::from_defined_mounts(mount, dataset_info)
                     }
                     // btrfs Some mounts are potential local mount
@@ -92,6 +92,9 @@ impl MapOfSnaps {
                     }
                     // btrfs None mounts are potential Snapper network mounts
                     FilesystemType::Btrfs(None) => Self::from_defined_mounts(mount, dataset_info),
+                    FilesystemType::Restic => {
+                        Self::from_defined_mounts(&dataset_info.source, dataset_info)
+                    }
                 };
 
                 (mount.clone(), snap_mounts)

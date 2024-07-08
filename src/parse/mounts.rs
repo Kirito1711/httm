@@ -27,6 +27,7 @@ use proc_mounts::MountIter;
 use rayon::iter::Either;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
+use std::mem;
 use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
@@ -156,92 +157,94 @@ impl BaseFilesystemInfo {
     fn from_file(path: &Path) -> HttmResult<(HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>)> {
         let mount_iter = MountIter::new_from_file(path)?;
 
-        let (map_of_datasets, filter_dirs): (HashMap<PathBuf, DatasetMetadata>, HashSet<PathBuf>) =
-            mount_iter
-                .par_bridge()
-                .flatten()
-                .filter(|mount_info| {
-                    !mount_info
-                        .dest
-                        .to_string_lossy()
-                        .contains(ZFS_HIDDEN_DIRECTORY)
-                })
-                .filter(|mount_info| {
-                    !mount_info
-                        .options
-                        .iter()
-                        .any(|opt| opt.contains(NILFS2_SNAPSHOT_ID_KEY))
-                })
-                .map(|mount_info| {
-                    let dest_path = PathBuf::from(&mount_info.dest);
-                    (mount_info, dest_path)
-                })
-                .partition_map(|(mount_info, dest_path)| match mount_info.fstype.as_str() {
-                    ZFS_FSTYPE => Either::Left((
+        let (mut map_of_datasets, filter_dirs): (
+            HashMap<PathBuf, DatasetMetadata>,
+            HashSet<PathBuf>,
+        ) = mount_iter
+            .par_bridge()
+            .flatten()
+            .filter(|mount_info| {
+                !mount_info
+                    .dest
+                    .to_string_lossy()
+                    .contains(ZFS_HIDDEN_DIRECTORY)
+            })
+            .filter(|mount_info| {
+                !mount_info
+                    .options
+                    .iter()
+                    .any(|opt| opt.contains(NILFS2_SNAPSHOT_ID_KEY))
+            })
+            .map(|mount_info| {
+                let dest_path = PathBuf::from(&mount_info.dest);
+                (mount_info, dest_path)
+            })
+            .partition_map(|(mount_info, dest_path)| match mount_info.fstype.as_str() {
+                ZFS_FSTYPE => Either::Left((
+                    dest_path,
+                    DatasetMetadata {
+                        source: PathBuf::from(mount_info.source),
+                        fs_type: FilesystemType::Zfs,
+                    },
+                )),
+                SMB_FSTYPE | AFP_FSTYPE | NFS_FSTYPE => match fs_type_from_hidden_dir(&dest_path) {
+                    Some(FilesystemType::Zfs) => Either::Left((
                         dest_path,
                         DatasetMetadata {
                             source: PathBuf::from(mount_info.source),
                             fs_type: FilesystemType::Zfs,
                         },
                     )),
-                    SMB_FSTYPE | AFP_FSTYPE | NFS_FSTYPE => {
-                        match fs_type_from_hidden_dir(&dest_path) {
-                            Some(FilesystemType::Zfs) => Either::Left((
-                                dest_path,
-                                DatasetMetadata {
-                                    source: PathBuf::from(mount_info.source),
-                                    fs_type: FilesystemType::Zfs,
-                                },
-                            )),
-                            Some(FilesystemType::Btrfs(None)) => Either::Left((
-                                dest_path,
-                                DatasetMetadata {
-                                    source: PathBuf::from(mount_info.source),
-                                    fs_type: FilesystemType::Btrfs(None),
-                                },
-                            )),
-                            _ => Either::Right(dest_path),
-                        }
-                    }
-                    BTRFS_FSTYPE => {
-                        let keyed_options: BTreeMap<&str, &str> = mount_info
-                            .options
-                            .iter()
-                            .filter(|line| line.contains('='))
-                            .filter_map(|line| line.split_once('='))
-                            .collect();
-
-                        let opt_subvol = keyed_options.get("subvol").map(|subvol| {
-                            match keyed_options.get("subvolid") {
-                                Some(id) if *id == "5" => BTRFS_ROOT_SUBVOL.clone(),
-                                _ => PathBuf::from(subvol),
-                            }
-                        });
-
-                        Either::Left((
-                            dest_path,
-                            DatasetMetadata {
-                                source: mount_info.source,
-                                fs_type: FilesystemType::Btrfs(opt_subvol),
-                            },
-                        ))
-                    }
-                    NILFS2_FSTYPE => Either::Left((
+                    Some(FilesystemType::Btrfs(None)) => Either::Left((
                         dest_path,
                         DatasetMetadata {
                             source: PathBuf::from(mount_info.source),
-                            fs_type: FilesystemType::Nilfs2,
-                        },
-                    )),
-                    FUSE_FSTYPE if mount_info.source == PathBuf::from("restic") => Either::Left((
-                        dest_path,
-                        DatasetMetadata {
-                            source: PathBuf::from(mount_info.source),
-                            fs_type: FilesystemType::Restic,
+                            fs_type: FilesystemType::Btrfs(None),
                         },
                     )),
                     _ => Either::Right(dest_path),
-                });
+                },
+                BTRFS_FSTYPE => {
+                    let keyed_options: BTreeMap<&str, &str> = mount_info
+                        .options
+                        .iter()
+                        .filter(|line| line.contains('='))
+                        .filter_map(|line| line.split_once('='))
+                        .collect();
+
+                    let opt_subvol = keyed_options.get("subvol").map(|subvol| match keyed_options
+                        .get("subvolid")
+                    {
+                        Some(id) if *id == "5" => BTRFS_ROOT_SUBVOL.clone(),
+                        _ => PathBuf::from(subvol),
+                    });
+
+                    Either::Left((
+                        dest_path,
+                        DatasetMetadata {
+                            source: mount_info.source,
+                            fs_type: FilesystemType::Btrfs(opt_subvol),
+                        },
+                    ))
+                }
+                NILFS2_FSTYPE => Either::Left((
+                    dest_path,
+                    DatasetMetadata {
+                        source: PathBuf::from(mount_info.source),
+                        fs_type: FilesystemType::Nilfs2,
+                    },
+                )),
+                FUSE_FSTYPE if mount_info.source == PathBuf::from("restic") => Either::Left((
+                    dest_path,
+                    DatasetMetadata {
+                        source: PathBuf::from(mount_info.source),
+                        fs_type: FilesystemType::Restic,
+                    },
+                )),
+                _ => Either::Right(dest_path),
+            });
+
+        Self::from_restic_dir(&mut map_of_datasets);
 
         if map_of_datasets.is_empty() {
             Err(HttmError::new("httm could not find any valid datasets on the system.").into())
@@ -324,6 +327,31 @@ impl BaseFilesystemInfo {
             Err(HttmError::new("httm could not find any valid datasets on the system.").into())
         } else {
             Ok((map_of_datasets, filter_dirs))
+        }
+    }
+
+    fn from_restic_dir(map_of_datasets: &mut HashMap<PathBuf, DatasetMetadata>) {
+        let root_dir = PathBuf::from(ROOT_DIRECTORY);
+
+        match map_of_datasets.get(&root_dir) {
+            Some(md) => {
+                eprintln!("WARN: httm has prioritized a discovered root directory mount over any potential Restic mounts: {:?}", md.source);
+            }
+            None => match map_of_datasets.iter().find(|(_k, v)| v.source == root_dir) {
+                Some((_k, v)) => {
+                    let mut new: HashMap<PathBuf, DatasetMetadata> = HashMap::new();
+                    new.insert(
+                        root_dir,
+                        DatasetMetadata {
+                            source: v.source.clone(),
+                            fs_type: FilesystemType::Restic,
+                        },
+                    );
+
+                    mem::swap(map_of_datasets, &mut new)
+                }
+                None => {}
+            },
         }
     }
 
