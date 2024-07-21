@@ -1,0 +1,64 @@
+import webbrowser
+
+html_content = """
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lo siento</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            text-align: center;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #dc3545;
+        }
+        p {
+            color: #6c757d;
+        }
+        .btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #dc3545;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        .btn:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Lo siento mucho</h1>
+        <p>Querida [Nombre de tu novia],</p>
+        <p>Quiero pedirte disculpas de todo corazón por lo que pasó. Lamento mucho haber herido tus sentimientos y espero que puedas perdonarme. Eres muy importante para mí y no quiero perderte.</p>
+        <p>Con todo mi amor,</p>
+        <p>[Tu nombre]</p>
+        <a href="javascript:history.back()" class="btn">Volver</a>
+    </div>
+</body>
+</html>
+"""
+
+# Escribir el contenido HTML en un archivo
+with open("perdon.html", "w") as file:
+    file.write(html_content)
+
+# Abrir el archivo HTML en el navegador predeterminado
+webbrowser.open("perdon.html")
